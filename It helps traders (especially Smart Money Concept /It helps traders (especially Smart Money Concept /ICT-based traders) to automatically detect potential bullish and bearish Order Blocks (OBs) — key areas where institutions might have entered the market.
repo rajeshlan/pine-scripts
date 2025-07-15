@@ -1,0 +1,67 @@
+//@version=6
+indicator("Probable Order Blocks: Reversal & Continuation", overlay=true, max_boxes_count=50, max_bars_back=5000)
+
+// === INPUTS ===
+structure_lookback = input.int(10, "Structure Lookback", minval=3)
+impulse_candles = input.int(3, "Impulse Candles (for OB validity)", minval=1)
+show_labels = input.bool(true, "Show OB Labels")
+
+// === STRUCTURE DETECTION ===
+isSwingHigh() =>
+    high[structure_lookback] == ta.highest(high, structure_lookback * 2 + 1)
+isSwingLow() =>
+    low[structure_lookback] == ta.lowest(low, structure_lookback * 2 + 1)
+
+var float last_swing_high = na
+var float last_swing_low = na
+var int last_swing_high_idx = na
+var int last_swing_low_idx = na
+
+if isSwingHigh()
+    last_swing_high := high[structure_lookback]
+    last_swing_high_idx := bar_index - structure_lookback
+if isSwingLow()
+    last_swing_low := low[structure_lookback]
+    last_swing_low_idx := bar_index - structure_lookback
+
+// === BREAK OF STRUCTURE (BOS) & CHoCH ===
+bos_up = ta.crossover(close, last_swing_high) and not na(last_swing_high)
+bos_down = ta.crossunder(close, last_swing_low) and not na(last_swing_low)
+
+// === ORDER BLOCK DETECTION ===
+// Bullish OB: Last down candle before BOS up (potential reversal/continuation)
+
+bool bull_ob_valid = false
+int bull_ob_idx = na
+if bos_up
+    // Find last bearish candle before BOS
+    for i = 1 to impulse_candles
+        if close[i] < open[i]
+            bull_ob_valid := true
+            bull_ob_idx := bar_index - i
+            break
+
+// Bearish OB: Last up candle before BOS down (potential reversal/continuation)
+bool bear_ob_valid = false
+int bear_ob_idx = na
+if bos_down
+    for i = 1 to impulse_candles
+        if close[i] > open[i]
+            bear_ob_valid := true
+            bear_ob_idx := bar_index - i
+            break
+
+// === VISUALIZATION ===
+if bull_ob_valid
+    float ob_top = high[bar_index - bull_ob_idx]
+    float ob_bot = low[bar_index - bull_ob_idx]
+    box.new(left=bull_ob_idx, right=bull_ob_idx + 20, top=ob_top, bottom=ob_bot, bgcolor=color.new(color.green, 85), border_color=color.green, extend=extend.right)
+    if show_labels
+        label.new(bull_ob_idx, ob_bot, "Bullish OB\n" + (bos_up ? "Reversal" : "Continuation"), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.tiny)
+
+if bear_ob_valid
+    float ob_top = high[bar_index - bear_ob_idx]
+    float ob_bot = low[bar_index - bear_ob_idx]
+    box.new(left=bear_ob_idx, right=bear_ob_idx + 20, top=ob_top, bottom=ob_bot, bgcolor=color.new(color.red, 85), border_color=color.red, extend=extend.right)
+    if show_labels
+        label.new(bear_ob_idx, ob_top, "Bearish OB\n" + (bos_down ? "Reversal" : "Continuation"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.tiny) 
