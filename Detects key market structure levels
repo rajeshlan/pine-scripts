@@ -1,0 +1,17 @@
+//@version=5
+indicator("Monday Double Highlight Enhanced", overlay=true)
+
+// Fetch daily open and close
+daily_open = request.security(syminfo.tickerid, "D", open)
+daily_close = request.security(syminfo.tickerid, "D", close)
+
+// Define conditions
+is_green = daily_close > daily_open
+is_red = daily_close < daily_open
+is_monday = dayofweek == dayofweek.monday
+
+// Set bar color for Monday based on daily close
+barcolor(is_monday and is_green ? color.green : is_monday and is_red ? color.red : na)
+
+// Set enhanced background color with adjusted transparency and contrast
+bgcolor(is_monday and is_green ? color.new(color.lime, 85) : is_monday and is_red ? color.new(color.maroon, 85) : na)
